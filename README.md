@@ -2,9 +2,11 @@
 
 > 制定日期：2026-10-19 ｜ 周期：10 天 ｜ 每日节奏：实操 70% + 理论 30%
 >
-> 目标：跑通 LeTools-Learning 工具链的「数据 → 训练 → 部署」完整闭环，同时建立对 VLA 具身操作基础模型的理论视野。
+> 目标：跑通 LeTools-Learning 工具链的「数据 → 训练 → 离线评测」完整闭环，同时建立对 VLA 具身操作基础模型的理论视野。
 >
 > 说明：本计划由 14 天版压缩而来——砍掉了独立的复盘日，VLA 实操（原 Day 10）提前到 Day 7，理论精读合并到 Day 8 集中进行。
+>
+> 🔄 更新 v1.1（2026-10-21）：按实际环境（WSL2 + 本地 4080S）调整，**去掉仿真（Gazebo）环节**，评测改为 checkpoint 离线验证。
 >
 > 📚 配套参考：[参考资料.md](参考资料.md)（具身智能术语 Wiki + Qwen-RobotManip 理论拆解 + 全部链接汇总）
 
@@ -28,11 +30,12 @@
 
 ---
 
-## 二、开始前自查
+## 二、环境与自查（已确定：WSL2 + 本地 4080S，不做仿真）
 
-- [ ] **系统**：Ubuntu 20.04（ROS Noetic 硬性要求），建议双系统
-- [ ] **GPU**：有最好；没有也能走完流程（官方教程明确 CPU 可跑通，慢 10–20 倍），正经训练建议租云 GPU（AutoDL 等）
-- [ ] **真机**：不需要，仿真可走完全程；有 Kuavo 真机则 Day 9 换成真机部署
+- [x] **环境**：Windows PC + WSL2 Ubuntu 26.04 + RTX 4080 SUPER（16G 显存），Mac 通过 `ssh myubuntu` 外网接入
+- [ ] **GPU 验证**：WSL 里 `nvidia-smi` 正常即可（GPU 由 Windows 驱动直通，**不要**在 WSL 内装 Linux 显卡驱动）
+- [ ] **不做仿真**：不装 Gazebo / ROS Noetic 桌面环境（26.04 也装不了 Noetic）；数据转换若依赖 ROS，走 Docker 容器化方式
+- [ ] **评测方式**：没有仿真和真机，用 **checkpoint 离线验证**代替——拿数据集做推理，对比预测动作和真值
 - [ ] **基础**：会 Python、知道神经网络是什么即可；ROS 和模仿学习零基础没关系
 
 > 10 天版节奏偏紧，环境（Day 2）一定不要拖过第二天；卡住超过半天就直接上 [GitHub Issues](https://github.com/LejuRobotics/LeTools-Learning/issues) 或官网 AI 助手提问。
@@ -51,7 +54,8 @@
 
 - [ ] 按 `beginner_tutorial.md` 第二~四部分 + `installation.md`：装 Miniforge、建 Python 3.12 环境
 - [ ] 克隆仓库并初始化子模块，跑 `setup_env.sh`
-- [ ] 按需装 ROS Noetic 或用 Docker
+- [ ] 不装 ROS Noetic；如数据转换脚本依赖 ROS，用 Docker 容器化方式跑（见 `installation.md` 的 Docker 部分）
+- [ ] 验证 GPU：`nvidia-smi` 能看到 RTX 4080 SUPER，`python -c "import torch; print(torch.cuda.is_available())"` 输出 `True`
 - [ ] 验证：`python kuavo_model/train.py --policy act --dry-run` 能正常打印配置
 
 > ⚠️ 这步最容易卡，且 10 天版没有缓冲日，今天必须打通。报错先查 FAQ / Issues / 官网 AI 助手。
@@ -69,11 +73,11 @@
 - [ ] 先 `--dry-run` 看解析结果，再小 steps（如 5000）跑通训练，盯 loss 曲线，找到 checkpoint 输出目录
 - [ ] 🌙 ACT 核心思想 30 分钟科普（CVAE + action chunking）
 
-### Day 5 — 仿真部署 ✅ 里程碑 M2
+### Day 5 — 推理链路 + 离线评测 ✅ 里程碑 M2
 
-- [ ] 按 `beginner_tutorial.md` 第七部分 + `inference.md`：配 `deploy.yaml`（`inference_env: sim`）
-- [ ] 跑 `python kuavo_deploy/eval.py`，在仿真里看自己训的策略执行
-- [ ] 顺着代码理一遍推理链路：checkpoint 加载 → 策略推理 → ROS 控制
+- [ ] 读 `inference.md` + `kuavo_deploy/eval.py` 源码，理清推理链路：checkpoint 加载 → 观测预处理 → 策略推理 → 动作输出（只读代码，不跑仿真）
+- [ ] 离线验证 Day 4 的 ACT checkpoint：加载模型，对数据集里几条 episode 逐帧推理，把**预测动作序列和真值动作**画在同一张图上看贴合程度
+- [ ] 算一个量化指标（如各关节 MSE / 误差曲线），形成「模型学到没有」的判断，写进笔记
 - [ ] 🌙 知乎 §2.1：VLM backbone + DiT action expert 解耦架构——理解 ACT 和 VLA 差在哪
 
 ### Day 6 — 对比第二个策略
@@ -98,16 +102,16 @@
 
 ### Day 9 — 综合项目 ✅ 里程碑 M4
 
-- [ ] 独立完整走一遍：数据 → 转换 → 训练 → 仿真评测 → 结果分析（成功率、失败案例分析）
+- [ ] 独立完整走一遍：数据 → 转换 → 训练 → 离线评测 → 结果分析（误差指标、预测偏差大的样本分析）
 - [ ] 🌙 知乎 §4：OOD vs in-domain 评测（LIBERO-PLUS、RoboTwin-IF/XE）、五组消融；理解核心论点「**alignment first, then scale**」
-- [ ] 有真机 / 有余力：换成 `inference_env: real` 真机部署，或玩 `roban_wholebody_vla.md` 全身 VLA 案例
+- [ ] 有余力：把 ACT / Diffusion / SmolVLA 在同一份数据上的离线指标做成对比表，写一段小结
 
 ### Day 10 — 收尾与进阶
 
 - [ ] 进阶选学：读 `bring_policies.md`，尝试接入一个新策略（深入代码结构）
 - [ ] 写一篇学习笔记或博客
 - [ ] 自测两问：「模仿学习和 VLA 的区别是什么」「为什么动作空间对齐比堆数据更重要」
-- [ ] 规划后续路线：精读原论文（ACT → Diffusion Policy → PI0）、LeRobot 源码、真机遥操作数据采集
+- [ ] 规划后续路线：精读原论文（ACT → Diffusion Policy → PI0）、LeRobot 源码；以后有仿真/真机条件时，再回来补 `kuavo_deploy` 的 sim / real 部署流程
 
 ---
 
@@ -116,22 +120,22 @@
 | 里程碑 | 时间 | 验收标准 |
 |---|---|---|
 | M1 | Day 3 | 能独立完成 Rosbag → LeRobot 数据转换 |
-| M2 | Day 5 | 第一个 ACT checkpoint 在仿真里跑起来 |
+| M2 | Day 5 | ACT checkpoint 完成离线验证：预测动作与真值基本贴合 |
 | M3 | Day 7 | 完成一个 VLA 模型（PI0/PI05）的微调或服务化部署 |
-| M4 | Day 9 | 独立完成「数据到仿真可执行策略」的完整闭环 |
+| M4 | Day 9 | 独立完成「数据 → 训练 → 离线评测」的完整闭环 |
 | 输出 | Day 10 | 一篇学习笔记 + 两个自测问题答得上来 |
 
 ---
 
 ## 五、提醒与求救渠道
 
-1. **最容易卡的点**：Ubuntu 20.04 + Python 3.12 + ROS Noetic 组合比较挑，严格按 `installation.md` 来，不要自由发挥
+1. **最容易卡的点**：Python 3.12 依赖安装，以及 WSL2 的小毛病（虚拟盘 I/O error 时用 `wsl.exe --shutdown` 重启即可）；严格按 `installation.md` 来，不要自由发挥
 2. **求救渠道**：
    - [GitHub Issues](https://github.com/LejuRobotics/LeTools-Learning/issues)（附环境信息 + 完整 traceback）
    - 官网文档页右下角 LeTools AI 助手
    - QQ / 微信群（见 `community.md`）
 3. **节奏原则**：环境问题卡超过半天就求助，不要自己硬耗——10 天版没有缓冲日
-4. **无 GPU 方案**：训练放云 GPU（AutoDL 等），本地只跑数据转换和配置管理，流程不受影响
+4. **显存不够时**（主要是 Day 7 的 PI0/PI05 微调）：退到 SmolVLA，或临时在 AutoDL 租几小时 A100（约 ¥5–8/时）；其余环节 4080S 足够
 
 ---
 
