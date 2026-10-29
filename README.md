@@ -34,4 +34,4 @@
 
 - [LeTools-Learning Issues](https://github.com/LejuRobotics/LeTools-Learning/issues)（附环境信息 + 完整 traceback）
 - 官网文档页右下角 AI 助手 / 社区群
-- **原则**：环境问题卡超过半天就求助；显存不够（VLA 阶段）退 SmolVLA 或 AutoDL 租 A100（约 ¥5–8/时）
+- **原则**：环境问题别硬扛，及时求助；显存不够（VLA 阶段）退 SmolVLA 或 AutoDL 租 A100（约 ¥5–8/时）
